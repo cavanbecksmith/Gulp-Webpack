@@ -3,20 +3,21 @@
 // --------------------
 
 var gulp = require('gulp');
-var webserver = require('gulp-webserver');
-var htmlmin = require('gulp-htmlmin');
 var webpack = require('webpack-stream');
-var sass = require('gulp-sass');
-var cleanCSS = require('gulp-clean-css');
-var uglify = require('gulp-uglify');
 var browserSync = require("browser-sync").create();
-var rename = require("gulp-rename");
+var plugins = require("gulp-load-plugins")();
+const named = require('vinyl-named');
 
 var requireHTML = false;
+const jsFiles = ['./src/js/main.js', './src/js/homepage.js']
 
 // ------------------
 // --- DEFAULT TASKS
 // ------------------
+
+gulp.task('test', [], function () {
+  console.log(plugins);
+});
 
 gulp.task('default',['webpack','sass'], function(){});
 
@@ -29,10 +30,13 @@ gulp.task('dev',['webpack','sass'], function(){
     gulp.watch("src/index.html", ['html']).on('change', browserSync.reload);
   }
 
+  // --- Using proxy allows for .php development
   browserSync.init({
-      open: requireHTML,
-      server: "./dist"
+      // open: requireHTML,
+      // server: "./dist"
+      proxy: "http://wordpress.local"
   });
+  gulp.watch("*.php").on('change', browserSync.reload);
   gulp.watch("src/js/**/*", ['webpack']).on('change', browserSync.reload);
   gulp.watch("src/scss/**/*", ['sass']).on('change', browserSync.reload);
 });
@@ -41,15 +45,11 @@ gulp.task('dev',['webpack','sass'], function(){
 // --- DEV TASKS
 // ----------------
 
-// --- SASS
+// --- SASS (COMPILES ALL .SCSS FILES EXCLUDING _*.scss FILES)
 gulp.task('sass', function () {
   return gulp.src('./src/scss/**/*.scss')
-    .pipe(sass().on('error', sass.logError))
-    .pipe(rename({
-      dirname: './dist/css',
-      basename: 'style',
-    }))
-    .pipe(gulp.dest(''));
+    .pipe(plugins.sass().on('error', plugins.sass.logError))
+    .pipe(gulp.dest('./css'));
 });
 
 gulp.task('html', function () {
@@ -59,13 +59,16 @@ gulp.task('html', function () {
 
 // --- JS (WEBPACK)
 gulp.task('webpack', function() {
-  return gulp.src('./src/js/main.js')
-    .pipe(webpack(require('./webpack.config.js')))
-    .pipe(rename({
-      dirname: './dist/js',
-      basename: 'main',
-    }))
-    .pipe(gulp.dest(''));
+  return gulp.src(jsFiles)
+    .pipe(named()) /* Allows webpack to compile multiple entrys */
+    .pipe(plugins.webpack(require('./webpack.config.js')))
+    .pipe(gulp.dest('./js'));
+});
+
+// --- CLEAN
+gulp.task('clean', function () {
+  return gulp.src(['./css', './js'], { read: false })
+    .pipe(plugins.clean());
 });
 
 // --------------------
@@ -73,27 +76,24 @@ gulp.task('webpack', function() {
 // --------------------
 
 gulp.task('webpack:prod', function() {
-  return gulp.src('./src/js/main.js')
-    .pipe(webpack(require('./webpack.config.js')))
-    .pipe(uglify())
-    .pipe(rename({
-      dirname: './dist/js',
-      basename: 'main',
+  return gulp.src(jsFiles)
+    .pipe(named()) /* Allows webpack to compile multiple entrys */
+    .pipe(plugins.webpack(require('./webpack.config.js')))
+    .pipe(plugins.uglify())
+    .pipe(plugins.rename({
       suffix: ".min"
     }))
-    .pipe(gulp.dest(''));
+    .pipe(gulp.dest('./js'));
 });
 
 gulp.task('sass:prod', function () {
   return gulp.src('./src/scss/**/*.scss')
-    .pipe(sass().on('error', sass.logError))
-    .pipe(rename({
-      dirname: './dist/css',
-      basename: 'style',
+    .pipe(plugins.sass().on('error', plugins.sass.logError))
+    .pipe(plugins.rename({
       suffix: ".min",
     }))
-    .pipe(cleanCSS())
-    .pipe(gulp.dest(''));
+    .pipe(plugins.cleanCss())
+    .pipe(gulp.dest('./css'));
 });
 
 gulp.task('prod',['webpack:prod', 'sass:prod'], function(){});
@@ -104,5 +104,5 @@ gulp.task('prod',['webpack:prod', 'sass:prod'], function(){});
 
 gulp.task('html', function() {
   return gulp.src('./src/index.html')
-    .pipe(gulp.dest('./dist/'));
+    .pipe(gulp.dest('./'));
 });
