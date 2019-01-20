@@ -15,7 +15,7 @@ const jsFiles = ['./src/js/main.js', './src/js/homepage.js']
 // --- DEFAULT TASKS
 // ------------------
 
-gulp.task('test', [], function () {
+gulp.task('plugins', [], function () {
   console.log(plugins);
 });
 
